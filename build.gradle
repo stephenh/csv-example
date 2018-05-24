@@ -3,12 +3,16 @@ plugins {
   id 'eclipse'
 }
 
-dependencies {
-  compile 'org.scala-lang:scala-library:2.12.6'
-  testCompile 'junit:junit:4.12'
-  testCompile 'org.scalatest:scalatest_2.12:3.0.4'
+repositories {
+  mavenCentral()
 }
 
-repositories {
-  jcenter()
+dependencies {
+  compile 'org.scala-lang:scala-library:2.12.6'
+  compile 'com.opencsv:opencsv:4.0'
+}
+
+task run(type: JavaExec) {
+  classpath = sourceSets.main.runtimeClasspath
+  main = 'mercury.Main'
 }
