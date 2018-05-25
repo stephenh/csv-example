@@ -3,6 +3,7 @@ package mercury
 import com.opencsv.CSVReader
 import java.nio.file.{ Files, Paths }
 import java.time.{ Instant, Month, ZoneId, ZoneOffset, ZonedDateTime }
+import java.io.Closeable
 
 // Column Headers: Transaction ID, Financial Institution, Payment Type, Amount, Currency, Vendor, Tags, Date
 // Example Rows:   19385281, "Wells Fargo", "Debit Card", "1.07", "USD", "STARBUCKS, INC.", "personal food", "2008-09-15Z15:53:00"
@@ -93,12 +94,34 @@ object Main {
   }
 
   private def readLines(): Seq[Array[String]] = {
-    val reader = Files.newBufferedReader(Paths.get("./csv_challenge.csv"))
-    try {
+    closing(Files.newBufferedReader(Paths.get("./csv_challenge.csv"))) { reader =>
       val csvReader = new CSVReader(reader)
       Iterator.continually(csvReader.readNext).drop(1).takeWhile(_ != null).toIndexedSeq
+    }
+  }
+
+  /** Opens {@code resource} and ensures it is closed. */
+  private def closing[T <: Closeable, R](resource: => T)(f: T => R): R = {
+    val r = resource
+    // Technically doing r.close in a finally can suppress the real exception
+    // if r.close also throws, so the "best" way to do this is have finally
+    // *also* do a try/catch. I'll go ahead and write it out...
+    //
+    // Turns out this is what the try-with-resources desugars to (which Java 8 has but Scala does not):
+    // https://stackoverflow.com/questions/30934141/why-does-try-finally-block-not-register-the-original-exception-as-suppressed
+    var original: Throwable = null;
+    try {
+      f(resource)
+    } catch {
+      case e: Throwable => original = e; throw e
     } finally {
-      reader.close()
+      try {
+        r.close()
+      } catch {
+        case e: Throwable =>
+          // could log what happened
+          throw (if (original != null) original else e)
+      }
     }
   }
 }
