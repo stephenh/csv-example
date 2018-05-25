@@ -115,9 +115,8 @@ object Main {
       try {
         r.close()
       } catch {
-        case e: Throwable =>
-          // could log what happened
-          throw (if (original != null) original else e)
+        case e: Throwable if original == null => throw e
+        case e: Throwable => original.addSuppressed(e); throw original
       }
     }
   }
