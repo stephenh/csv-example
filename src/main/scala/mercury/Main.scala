@@ -72,22 +72,19 @@ object Main {
     // 6. Search the data for "suspicious spends" for each vendor.
     // Suspicious spends are defined as more than 1.75 standard deviations above the mean of purchases for a given vendor.
     // Print the vendor names and transaction IDs.
-    val vendorStats = lines
+    def limit(amounts: Seq[Int]): Int = {
+      // https://stackoverflow.com/questions/24192265/scala-finding-mean-and-standard-deviation-of-a-large-dataset
+      val mean = amounts.sum / amounts.size
+      val devs = amounts.map { a => (a - mean) * (a - mean) }
+      val stdev = Math.sqrt(devs.sum / (amounts.size - 1))
+      (mean + (1.75 * stdev)).toInt
+    }
+    val vendorLimits = lines
       .map { l => (l.vendor, l.amount) }
       .groupBy { t => t._1 } // vendor
-      .map {
-        case (vendor, tuples) =>
-          val amounts = tuples.map(_._2)
-          val total = amounts.sum
-          val count = tuples.size
-          val mean = total / count
-          // https://stackoverflow.com/questions/24192265/scala-finding-mean-and-standard-deviation-of-a-large-dataset
-          val devs = amounts.map { a => (a - mean) * (a - mean) }
-          val stdev = Math.sqrt(devs.sum / (count - 1))
-          val limit = mean + (1.75 * stdev)
-          vendor -> limit
-      }.toMap
-    val answer6 = lines.filter { l => l.amount > vendorStats(l.vendor) }
+      .mapValues { t => limit(t.map(_._2)) }
+      .view.force // hack to de-view mapValues
+    val answer6 = lines.filter { l => l.amount > vendorLimits(l.vendor) }
     answer6.groupBy(_.vendor).foreach {
       case (vendor, lines) => println(s"${vendor} had ${lines.size} suspicious transactions")
     }
